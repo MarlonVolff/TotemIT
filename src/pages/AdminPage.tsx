@@ -62,7 +62,6 @@ export function AdminPage() {
   const itemsPerPage = 10;
 
   const [stats, setStats] = useState({ total: 0, open: 0, inProgress: 0, completed: 0, waiting: 0 });
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!userStore.isAuthenticated()) {
@@ -72,7 +71,6 @@ export function AdminPage() {
 
     const loadData = async () => {
       try {
-        setLoading(true);
         await Promise.all([
           requestStore.fetchAll(),
           userStore.fetchAll(),
@@ -83,8 +81,6 @@ export function AdminPage() {
         setStats(statsData);
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
-      } finally {
-        setLoading(false);
       }
     };
 
