@@ -5,39 +5,13 @@ const db = require('./database');
 
 const usersRoutes = require('./routes/users');
 const requestsRoutes = require('./routes/requests');
+const notificationsRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Configurar CORS para permitir Vercel
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  process.env.FRONTEND_URL,
-  /\.vercel\.app$/  // Permite qualquer domínio .vercel.app
-];
-
-app.use(cors({
-  origin: function(origin, callback) {
-    // Permite requisições sem origin (mobile apps, Postman, etc)
-    if (!origin) return callback(null, true);
-
-    // Verifica se a origin está na lista permitida
-    const isAllowed = allowedOrigins.some(allowed => {
-      if (typeof allowed === 'string') return allowed === origin;
-      if (allowed instanceof RegExp) return allowed.test(origin);
-      return false;
-    });
-
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      callback(new Error('Não permitido pelo CORS'));
-    }
-  },
-  credentials: true
-}));
-
+// Middleware
+app.use(cors());
 app.use(express.json());
 
 // Log de requisições
@@ -49,6 +23,7 @@ app.use((req, res, next) => {
 // Rotas da API
 app.use('/api/users', usersRoutes);
 app.use('/api/requests', requestsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // Rota de health check
 app.get('/api/health', (req, res) => {
@@ -71,12 +46,11 @@ app.get('*', (req, res) => {
 });
 
 // Iniciar servidor
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log('===========================================');
   console.log(`🚀 Servidor Backend rodando`);
-  console.log(`📡 Porta: ${PORT}`);
-  console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔍 Health: /api/health`);
+  console.log(`📡 API: http://localhost:${PORT}/api`);
+  console.log(`🔍 Health: http://localhost:${PORT}/api/health`);
   console.log('===========================================');
   console.log('📚 Endpoints disponíveis:');
   console.log('   POST   /api/users/login');

@@ -30,10 +30,21 @@ db.serialize(() => {
       status TEXT NOT NULL CHECK(status IN ('Aberto', 'Em andamento', 'Aguardando retirada', 'Finalizado')),
       analyst_code TEXT,
       analyst_name TEXT,
+      notified INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Adicionar coluna notified se não existir (migration)
+  db.run(`
+    ALTER TABLE equipment_requests ADD COLUMN notified INTEGER DEFAULT 0
+  `, (err) => {
+    // Ignora erro se coluna já existe
+    if (err && !err.message.includes('duplicate column')) {
+      console.error('Erro ao adicionar coluna notified:', err);
+    }
+  });
 
   // Verificar se usuário admin padrão existe
   db.get('SELECT * FROM users WHERE code = ?', ['ADMN'], (err, row) => {
