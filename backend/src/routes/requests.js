@@ -37,7 +37,9 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Campos obrigatórios faltando' });
   }
 
-  const id = `REQ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  // Gerar ID sequencial de 13 dígitos
+  const timestamp = Date.now().toString(); // 13 dígitos
+  const id = `REQ-${timestamp}`;
 
   const stmt = db.prepare(`
     INSERT INTO equipment_requests (

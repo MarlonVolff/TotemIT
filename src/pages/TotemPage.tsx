@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Monitor, Mouse, Keyboard, Headphones, Cable, Usb, Laptop, Package } from 'lucide-react';
+import { Monitor, Headphones, Cable, Laptop, Package, AlertTriangle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,12 +9,9 @@ import { requestStore } from '@/store/requestStore';
 
 const equipmentOptions: Array<{ type: EquipmentType; icon: React.ReactNode }> = [
   { type: 'Carregador Notebook', icon: <Cable className="w-12 h-12" /> },
-  { type: 'Mouse', icon: <Mouse className="w-12 h-12" /> },
-  { type: 'Teclado', icon: <Keyboard className="w-12 h-12" /> },
   { type: 'Headset', icon: <Headphones className="w-12 h-12" /> },
-  { type: 'Cabo HDMI', icon: <Cable className="w-12 h-12" /> },
-  { type: 'Adaptador USB-C', icon: <Usb className="w-12 h-12" /> },
   { type: 'Notebook Reserva', icon: <Laptop className="w-12 h-12" /> },
+  { type: 'Problema na mesa', icon: <AlertTriangle className="w-12 h-12" /> },
   { type: 'Outros', icon: <Package className="w-12 h-12" /> },
 ];
 
@@ -28,6 +25,7 @@ export function TotemPage() {
     team: '',
     observation: '',
   });
+  const [isLoadingEmployee, setIsLoadingEmployee] = useState(false);
 
   const handleEquipmentSelect = (equipment: EquipmentType) => {
     setSelectedEquipment(equipment);
@@ -64,6 +62,66 @@ export function TotemPage() {
   const handleBackToSelection = () => {
     setSelectedEquipment(null);
     setShowConfirmation(false);
+    // Limpar todos os campos do formulário ao voltar
+    setFormData({
+      employeeName: '',
+      employeeCode: '',
+      team: '',
+      observation: '',
+    });
+  };
+
+  const handleEmployeeCodeChange = async (code: string) => {
+    const upperCode = code.toUpperCase();
+    setFormData({ ...formData, employeeCode: upperCode });
+
+    // Quando digitar 4 letras, buscar automaticamente
+    if (upperCode.length === 4) {
+      setIsLoadingEmployee(true);
+      try {
+        console.log('🔍 Buscando colaborador:', upperCode);
+        const response = await fetch(`http://localhost:3001/api/colaboradores/${upperCode}`);
+
+        if (response.ok) {
+          const colaborador = await response.json();
+          console.log('✅ Colaborador encontrado:', colaborador);
+
+          // Limpar o nome (remover espaços extras e informações entre parênteses)
+          let cleanName = colaborador.full_name || '';
+          // Remove tudo entre parênteses e após
+          cleanName = cleanName.replace(/\s*\([^)]*\)\s*/g, '').trim();
+
+          console.log('📝 Nome limpo:', cleanName);
+
+          setFormData({
+            ...formData,
+            employeeCode: upperCode,
+            employeeName: cleanName,
+            team: colaborador.function || colaborador.organization_name || '',
+          });
+        } else {
+          console.warn('⚠️ Colaborador não encontrado:', upperCode);
+          // Se não encontrar, limpa os campos
+          setFormData({
+            ...formData,
+            employeeCode: upperCode,
+            employeeName: '',
+            team: '',
+          });
+        }
+      } catch (error) {
+        console.error('❌ Erro ao buscar colaborador:', error);
+        // Em caso de erro, também limpa os campos
+        setFormData({
+          ...formData,
+          employeeCode: upperCode,
+          employeeName: '',
+          team: '',
+        });
+      } finally {
+        setIsLoadingEmployee(false);
+      }
+    }
   };
 
   if (showConfirmation && lastRequest) {
@@ -121,6 +179,13 @@ export function TotemPage() {
             Nova Solicitação
           </Button>
         </Card>
+
+        {/* Copyright */}
+        <div className="absolute bottom-6 left-0 right-0 text-center">
+          <p className="text-sm text-slate-500">
+            © {new Date().getFullYear()} GFT. Todos os direitos reservados.
+          </p>
+        </div>
       </div>
     );
   }
@@ -128,89 +193,123 @@ export function TotemPage() {
   if (selectedEquipment) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-6">
-        <Card className="w-full max-w-2xl p-8 shadow-xl border-2">
-          <div className="mb-8">
-            <button
-              onClick={handleBackToSelection}
-              className="text-slate-600 hover:text-slate-900 mb-4 flex items-center gap-2 text-sm font-medium"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Voltar
-            </button>
-            <h1 className="text-3xl font-semibold text-slate-800">
-              Solicitar {selectedEquipment}
-            </h1>
-            <p className="text-slate-600 mt-2">
-              Preencha os dados abaixo para completar sua solicitação
+        <div className="w-full max-w-3xl">
+          {/* Botão Voltar */}
+          <button
+            onClick={handleBackToSelection}
+            className="mb-6 text-slate-600 hover:text-slate-900 flex items-center gap-2 font-medium transition-all hover:gap-3"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Voltar
+          </button>
+
+          {/* Card do Formulário */}
+          <Card className="bg-white shadow-xl border-0 overflow-hidden">
+            {/* Header com background azul suave */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 px-10 py-8">
+              <h1 className="text-3xl font-bold text-slate-900">
+                Solicitar {selectedEquipment}
+              </h1>
+              <p className="text-slate-600 mt-2">
+                Preencha as informações abaixo para criar sua solicitação
+              </p>
+            </div>
+
+            {/* Formulário */}
+            <form onSubmit={handleSubmit} className="p-10">
+              <div className="space-y-8">
+                {/* Campo 4 Letras - Destaque */}
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6">
+                  <label className="block text-base font-semibold text-slate-900 mb-3">
+                    Código do Colaborador
+                  </label>
+                  <div className="relative">
+                    <Input
+                      required
+                      maxLength={4}
+                      value={formData.employeeCode}
+                      onChange={(e) => handleEmployeeCodeChange(e.target.value)}
+                      placeholder="DIGITE SUAS 4 LETRAS"
+                      className="h-14 text-lg uppercase font-bold tracking-wider text-center border-2 border-blue-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 bg-white"
+                      disabled={isLoadingEmployee}
+                      autoFocus
+                    />
+                    {isLoadingEmployee && (
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        <div className="animate-spin h-6 w-6 border-3 border-blue-600 border-t-transparent rounded-full"></div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-sm text-blue-700 mt-3 font-medium">
+                    ✓ Seus dados serão carregados automaticamente
+                  </p>
+                </div>
+
+                {/* Grid de 2 colunas */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Nome */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-3">
+                      Nome Completo
+                    </label>
+                    <Input
+                      required
+                      value={formData.employeeName}
+                      onChange={(e) => setFormData({ ...formData, employeeName: e.target.value })}
+                      placeholder="Aguardando código..."
+                      className="h-12 bg-slate-50 border-slate-300 text-slate-900"
+                      readOnly
+                      disabled={isLoadingEmployee}
+                    />
+                  </div>
+
+                  {/* Setor */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-3">
+                      Equipe / Setor
+                    </label>
+                    <Input
+                      required
+                      value={formData.team}
+                      onChange={(e) => setFormData({ ...formData, team: e.target.value })}
+                      placeholder="Aguardando código..."
+                      className="h-12 bg-slate-50 border-slate-300 text-slate-900"
+                      readOnly
+                      disabled={isLoadingEmployee}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Botão Submit */}
+              <div className="mt-10">
+                <Button
+                  type="submit"
+                  className="w-full h-14 text-lg font-semibold bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all"
+                  size="lg"
+                  disabled={isLoadingEmployee}
+                >
+                  {isLoadingEmployee ? 'Carregando dados...' : 'Confirmar Solicitação'}
+                </Button>
+              </div>
+            </form>
+          </Card>
+
+          {/* Copyright */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-slate-500">
+              © {new Date().getFullYear()} GFT. Todos os direitos reservados.
             </p>
           </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Nome do Colaborador
-              </label>
-              <Input
-                required
-                value={formData.employeeName}
-                onChange={(e) => setFormData({ ...formData, employeeName: e.target.value })}
-                placeholder="Digite seu nome completo"
-                className="h-12"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                4 Letras
-              </label>
-              <Input
-                required
-                maxLength={4}
-                value={formData.employeeCode}
-                onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value.toUpperCase() })}
-                placeholder="Ex: ABCD"
-                className="h-12 uppercase"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Equipe / Setor
-              </label>
-              <Input
-                required
-                value={formData.team}
-                onChange={(e) => setFormData({ ...formData, team: e.target.value })}
-                placeholder="Ex: Desenvolvimento, Comercial, RH"
-                className="h-12"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Observação (Opcional)
-              </label>
-              <Textarea
-                value={formData.observation}
-                onChange={(e) => setFormData({ ...formData, observation: e.target.value })}
-                placeholder="Informações adicionais sobre a solicitação"
-                rows={4}
-              />
-            </div>
-
-            <Button type="submit" className="w-full h-12 text-base" size="lg">
-              Solicitar Equipamento
-            </Button>
-          </form>
-        </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
       <header className="bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center gap-4">
@@ -229,7 +328,7 @@ export function TotemPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-12">
+      <main className="flex-1 max-w-7xl mx-auto px-6 py-12 w-full">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-semibold text-slate-800 mb-3">
             Selecione o equipamento desejado
@@ -256,6 +355,13 @@ export function TotemPage() {
           ))}
         </div>
       </main>
+
+      {/* Copyright */}
+      <footer className="py-6 text-center border-t border-slate-200 bg-white mt-auto">
+        <p className="text-sm text-slate-500">
+          © {new Date().getFullYear()} GFT. Todos os direitos reservados.
+        </p>
+      </footer>
     </div>
   );
 }

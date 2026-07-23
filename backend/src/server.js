@@ -5,7 +5,7 @@ const db = require('./database');
 
 const usersRoutes = require('./routes/users');
 const requestsRoutes = require('./routes/requests');
-const notificationsRoutes = require('./routes/notifications');
+const colaboradoresRoutes = require('./routes/colaboradores');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,7 +23,7 @@ app.use((req, res, next) => {
 // Rotas da API
 app.use('/api/users', usersRoutes);
 app.use('/api/requests', requestsRoutes);
-app.use('/api/notifications', notificationsRoutes);
+app.use('/api/colaboradores', colaboradoresRoutes);
 
 // Rota de health check
 app.get('/api/health', (req, res) => {
@@ -62,6 +62,8 @@ app.listen(PORT, () => {
   console.log('   POST   /api/requests');
   console.log('   PUT    /api/requests/:id');
   console.log('   GET    /api/requests/stats/summary');
+  console.log('   GET    /api/colaboradores/:employeeNumber');
+  console.log('   GET    /api/colaboradores');
   console.log('===========================================');
 });
 

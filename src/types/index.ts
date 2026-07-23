@@ -1,11 +1,8 @@
 export type EquipmentType =
   | 'Carregador Notebook'
-  | 'Mouse'
-  | 'Teclado'
   | 'Headset'
-  | 'Cabo HDMI'
-  | 'Adaptador USB-C'
   | 'Notebook Reserva'
+  | 'Problema na mesa'
   | 'Outros';
 
 export type RequestStatus = 'Aberto' | 'Em andamento' | 'Finalizado' | 'Aguardando retirada';

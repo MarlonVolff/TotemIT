@@ -5,6 +5,24 @@ const dbPath = path.join(__dirname, '..', 'database.sqlite');
 const db = new sqlite3.Database(dbPath);
 
 db.serialize(() => {
+  // Tabela de colaboradores (importados do Excel)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS colaboradores (
+      employee_number TEXT PRIMARY KEY,
+      full_name TEXT NOT NULL,
+      first_name TEXT,
+      last_name TEXT,
+      organization_name TEXT,
+      status TEXT,
+      city TEXT,
+      location_name TEXT,
+      email TEXT,
+      phone TEXT,
+      function TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Tabela de usuários (Administradores e Analistas)
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
@@ -30,21 +48,10 @@ db.serialize(() => {
       status TEXT NOT NULL CHECK(status IN ('Aberto', 'Em andamento', 'Aguardando retirada', 'Finalizado')),
       analyst_code TEXT,
       analyst_name TEXT,
-      notified INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
-
-  // Adicionar coluna notified se não existir (migration)
-  db.run(`
-    ALTER TABLE equipment_requests ADD COLUMN notified INTEGER DEFAULT 0
-  `, (err) => {
-    // Ignora erro se coluna já existe
-    if (err && !err.message.includes('duplicate column')) {
-      console.error('Erro ao adicionar coluna notified:', err);
-    }
-  });
 
   // Verificar se usuário admin padrão existe
   db.get('SELECT * FROM users WHERE code = ?', ['ADMN'], (err, row) => {
