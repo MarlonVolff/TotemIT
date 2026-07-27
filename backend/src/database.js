@@ -53,36 +53,9 @@ db.serialize(() => {
     )
   `);
 
-  // Verificar se usuário admin padrão existe
-  db.get('SELECT * FROM users WHERE code = ?', ['ADMN'], (err, row) => {
-    if (err) {
-      console.error('❌ Erro ao verificar usuário admin:', err);
-      return;
-    }
-
-    if (!row) {
-      // Criar usuário administrador padrão
-      const stmt = db.prepare(`
-        INSERT INTO users (id, name, code, email, role, password, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-      `);
-
-      stmt.run(
-        'admin-default',
-        'Administrador',
-        'ADMN',
-        'admin@empresa.com',
-        'Administrador',
-        'admin123'
-      );
-
-      stmt.finalize();
-      console.log('✅ Banco de dados inicializado');
-      console.log('✅ Usuário padrão criado: ADMN / admin123');
-    } else {
-      console.log('✅ Banco de dados conectado');
-    }
-  });
+  // Banco de dados inicializado sem usuários padrão
+  console.log('✅ Banco de dados conectado');
+  console.log('⚠️  Crie seu primeiro usuário admin através da API ou banco de dados');
 });
 
 module.exports = db;
