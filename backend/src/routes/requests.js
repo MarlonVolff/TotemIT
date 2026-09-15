@@ -45,7 +45,7 @@ router.post('/', (req, res) => {
     INSERT INTO equipment_requests (
       id, employee_name, employee_code, equipment, team, observation,
       status, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, 'Aberto', datetime('now'), datetime('now'))
+    ) VALUES (?, ?, ?, ?, ?, ?, 'Aberto', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
   `);
 
   stmt.run(

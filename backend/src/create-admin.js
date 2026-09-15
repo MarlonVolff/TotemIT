@@ -59,7 +59,7 @@ rl.question('Nome completo: ', (name) => {
           const id = `admin-${Date.now()}`;
           const stmt = db.prepare(`
             INSERT INTO users (id, name, code, email, role, password, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
           `);
 
           stmt.run(id, name, upperCode, email, 'Administrador', password, (err) => {

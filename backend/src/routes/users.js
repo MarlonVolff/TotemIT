@@ -49,7 +49,7 @@ router.post('/', (req, res) => {
 
   const stmt = db.prepare(`
     INSERT INTO users (id, name, code, email, role, password, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `);
 
   stmt.run(id, name, code.toUpperCase(), email, role, password, function(err) {
