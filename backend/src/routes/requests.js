@@ -2,6 +2,27 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database');
 
+// Estatísticas públicas (DEVE VIR ANTES DE /:id)
+router.get('/stats/public', (req, res) => {
+  const hoje = new Date().toISOString().split('T')[0];
+
+  const query = `
+    SELECT
+      COUNT(*) as total,
+      SUM(CASE WHEN status = 'Aberto' THEN 1 ELSE 0 END) as abertos,
+      SUM(CASE WHEN status = 'Finalizado' THEN 1 ELSE 0 END) as finalizados,
+      SUM(CASE WHEN DATE(created_at) = ? THEN 1 ELSE 0 END) as hoje
+    FROM equipment_requests
+  `;
+
+  db.get(query, [hoje], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(row);
+  });
+});
+
 // Listar todas as solicitações
 router.get('/', (req, res) => {
   db.all('SELECT * FROM equipment_requests ORDER BY created_at DESC', [], (err, rows) => {

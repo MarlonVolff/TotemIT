@@ -1,8 +1,0 @@
-node_modules
-backend/node_modules
-.git
-*.md
-.env
-.env.local
-backend/database.sqlite
-backend/colaboradores.xlsx

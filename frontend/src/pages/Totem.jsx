@@ -1,146 +1,258 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import {
+  Plug2,
+  Mouse,
+  Keyboard,
+  MonitorPlay,
+  Cable,
+  Headphones,
+  UsbIcon,
+  RectangleHorizontal
+} from 'lucide-react';
+import Header from '../components/Header';
 import CardEquipamento from '../components/CardEquipamento';
 import api from '../services/api';
 import './Totem.css';
 
-const equipamentos = [
-  { nome: 'Carregador de Notebook', icone: '🔌' },
-  { nome: 'Mouse USB', icone: '🖱️' },
-  { nome: 'Teclado USB', icone: '⌨️' },
-  { nome: 'Cabo HDMI', icone: '📺' },
-  { nome: 'Cabo de Rede', icone: '🔗' },
-  { nome: 'Headset', icone: '🎧' },
-  { nome: 'Adaptador USB-C', icone: '🔄' },
-  { nome: 'Mousepad', icone: '📋' }
-];
-
 const Totem = () => {
   const [equipamentoSelecionado, setEquipamentoSelecionado] = useState(null);
   const [colaboradorId, setColaboradorId] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
+  const [colaborador, setColaborador] = useState(null);
+  const [buscandoColaborador, setBuscandoColaborador] = useState(false);
+  const [mensagem, setMensagem] = useState(null);
+  const [enviando, setEnviando] = useState(false);
 
-  const handleSelectEquipamento = (nomeEquipamento) => {
-    setEquipamentoSelecionado(nomeEquipamento);
-    setMensagem({ tipo: '', texto: '' });
+  const equipamentos = [
+    {
+      id: 'carregador-notebook',
+      nome: 'Carregador de Notebook',
+      descricao: 'Fonte de alimentação Tipo C',
+      icon: Plug2
+    },
+    {
+      id: 'Carregador-Macbook',
+      nome: 'Carregador Macbook',
+      descricao: 'Necessito de um carregador de Macbook',
+      icon: Mouse
+    },
+    // {
+    //   id: 'teclado',
+    //   nome: 'Teclado USB',
+    //   descricao: 'Teclado padrão com fio USB',
+    //   icon: Keyboard
+    // },
+    {
+      id: 'monitor',
+      nome: 'Monitor não liga',
+      descricao: 'Monitor adicional para workstation',
+      icon: MonitorPlay
+    },
+    {
+      id: 'Adaptador VGA para HDMI com problema',
+      nome: 'Adaptador VGA para HDMI',
+      descricao: 'Adaptador VGA para HDMI com problema',
+      icon: Cable
+    },
+    {
+      id: 'headset',
+      nome: 'Headset',
+      descricao: 'Fone de ouvido com microfone',
+      icon: Headphones
+    },
+    // {
+    //   id: 'adaptador-usb',
+    //   nome: 'Adaptador USB',
+    //   descricao: 'Hub USB ou adaptador',
+    //   icon: UsbIcon
+    // },
+    // {
+    //   id: 'mousepad',
+    //   nome: 'Mousepad',
+    //   descricao: 'Base ergonômica para mouse',
+    //   icon: RectangleHorizontal
+    // }
+  ];
+
+  const buscarColaborador = async (codigo) => {
+    if (codigo.length !== 4) {
+      setColaborador(null);
+      return;
+    }
+
+    setBuscandoColaborador(true);
+    setMensagem(null);
+
+    try {
+      const response = await api.get(`/colaboradores/${codigo}`);
+      setColaborador(response.data);
+    } catch (error) {
+      setColaborador(null);
+      setMensagem({
+        tipo: 'erro',
+        texto: 'Colaborador não encontrado'
+      });
+    } finally {
+      setBuscandoColaborador(false);
+    }
   };
+
+  useEffect(() => {
+    if (colaboradorId.length === 4) {
+      buscarColaborador(colaboradorId);
+    }
+  }, [colaboradorId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (colaboradorId.length !== 4) {
+    if (!colaborador) {
       setMensagem({
         tipo: 'erro',
-        texto: 'O ID deve ter exatamente 4 letras!'
+        texto: 'Por favor, digite um código válido de colaborador'
       });
       return;
     }
 
-    setLoading(true);
+    setEnviando(true);
+    setMensagem(null);
 
     try {
-      await api.post('/chamados', {
-        colaborador_id: colaboradorId,
-        equipamento: equipamentoSelecionado
+      await api.post('/requests', {
+        employee_name: colaborador.full_name,
+        employee_code: colaboradorId,
+        equipment: equipamentoSelecionado.nome,
+        team: colaborador.function || colaborador.organization_name || 'Não informado'
       });
 
       setMensagem({
         tipo: 'sucesso',
-        texto: '✓ Chamado criado com sucesso! A TI irá atendê-lo em breve.'
+        texto: 'Solicitação enviada com sucesso!'
       });
 
       setTimeout(() => {
         setEquipamentoSelecionado(null);
         setColaboradorId('');
-        setMensagem({ tipo: '', texto: '' });
+        setColaborador(null);
+        setMensagem(null);
       }, 3000);
     } catch (error) {
       setMensagem({
         tipo: 'erro',
-        texto: 'Erro ao criar chamado. Tente novamente.'
+        texto: error.response?.data?.error || 'Erro ao enviar solicitação'
       });
     } finally {
-      setLoading(false);
+      setEnviando(false);
     }
   };
 
   const handleVoltar = () => {
     setEquipamentoSelecionado(null);
     setColaboradorId('');
-    setMensagem({ tipo: '', texto: '' });
+    setColaborador(null);
+    setMensagem(null);
   };
 
   return (
-    <div className="totem-container">
-      <div className="totem-header">
-        <h1>🖥️ Totem de Equipamentos TI</h1>
-        <p>Selecione o equipamento que você precisa</p>
-      </div>
-
-      {!equipamentoSelecionado ? (
-        <div className="grid-equipamentos">
-          {equipamentos.map((equip, index) => (
-            <CardEquipamento
-              key={index}
-              equipamento={equip}
-              onSelect={handleSelectEquipamento}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="form-container">
-          <div className="form-card">
-            <h2>Solicitar: {equipamentoSelecionado}</h2>
-
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Digite suas 4 letras de identificação:</label>
-                <input
-                  type="text"
-                  maxLength={4}
-                  value={colaboradorId}
-                  onChange={(e) => setColaboradorId(e.target.value.toUpperCase())}
-                  placeholder="ABCD"
-                  className="input-colaborador"
-                  autoFocus
-                  disabled={loading}
-                />
+    <>
+      <Header />
+      <div className="totem-container">
+        <div className="content-wrapper">
+          {!equipamentoSelecionado ? (
+            <>
+              <div className="page-header">
+                <div className="page-eyebrow">Service Desk</div>
+                {/* <h1 className="page-title">Solicitação de Equipamentos TI</h1> */}
+                <p className="page-subtitle">
+                  Selecione o equipamento que você precisa para dar continuidade ao seu trabalho
+                </p>
               </div>
 
-              {mensagem.texto && (
-                <div className={`mensagem mensagem-${mensagem.tipo}`}>
-                  {mensagem.texto}
-                </div>
-              )}
-
-              <div className="form-buttons">
-                <button
-                  type="button"
-                  onClick={handleVoltar}
-                  className="btn btn-secondary"
-                  disabled={loading}
-                >
-                  Voltar
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={loading || colaboradorId.length !== 4}
-                >
-                  {loading ? 'Enviando...' : 'Confirmar Solicitação'}
-                </button>
+              <div className="grid-equipamentos">
+                {equipamentos.map((equip) => (
+                  <CardEquipamento
+                    key={equip.id}
+                    equipamento={equip}
+                    onClick={() => setEquipamentoSelecionado(equip)}
+                  />
+                ))}
               </div>
-            </form>
+            </>
+          ) : (
+            <div className="form-container">
+              <div className="form-card">
+                <h2>Solicitar {equipamentoSelecionado.nome}</h2>
+
+                <form onSubmit={handleSubmit}>
+                  <div className="form-group">
+                    <label>Código do Colaborador (4 letras)</label>
+                    <input
+                      type="text"
+                      className="input-colaborador"
+                      value={colaboradorId}
+                      onChange={(e) => setColaboradorId(e.target.value.toUpperCase())}
+                      maxLength="4"
+                      placeholder="_ _ _ _"
+                      autoFocus
+                      required
+                    />
+                    {buscandoColaborador && (
+                      <div className="input-feedback loading">
+                        Buscando colaborador...
+                      </div>
+                    )}
+                  </div>
+
+                  {colaborador && (
+                    <div className="colaborador-info">
+                      <div className="info-row">
+                        <label>Nome Completo</label>
+                        <div className="info-value">{colaborador.full_name}</div>
+                      </div>
+                      <div className="info-row">
+                        <label>Função</label>
+                        <div className="info-value">
+                          {colaborador.function || colaborador.organization_name || 'Não informado'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {mensagem && (
+                    <div className={`mensagem ${mensagem.tipo === 'sucesso' ? 'mensagem-sucesso' : 'mensagem-erro'}`}>
+                      {mensagem.texto}
+                    </div>
+                  )}
+
+                  <div className="form-buttons">
+                    <button
+                      type="button"
+                      onClick={handleVoltar}
+                      className="btn btn-secondary"
+                      disabled={enviando}
+                    >
+                      Voltar
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={!colaborador || enviando}
+                    >
+                      {enviando ? 'Enviando...' : 'Confirmar Solicitação'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          <div className="totem-footer">
+            <a href="/painel-ti" className="link-admin">
+              Acesso Administrativo
+            </a>
           </div>
         </div>
-      )}
-
-      <div className="totem-footer">
-        <a href="/painel-ti" className="link-admin">
-          Acesso TI
-        </a>
       </div>
-    </div>
+    </>
   );
 };
 

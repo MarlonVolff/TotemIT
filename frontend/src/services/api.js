@@ -1,10 +1,8 @@
 import axios from 'axios';
 
-// URL relativa - funciona tanto em desenvolvimento quanto em produção
-// Em produção: usa o mesmo servidor (mesma porta)
-// Em desenvolvimento: pode configurar proxy no package.json
+// URL da API para desenvolvimento local
 const api = axios.create({
-  baseURL: '/api'
+  baseURL: 'http://localhost:3001/api'
 });
 
 // Interceptor para adicionar token JWT automaticamente

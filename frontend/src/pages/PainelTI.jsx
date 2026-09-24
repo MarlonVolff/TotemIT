@@ -1,4 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import {
+  LayoutDashboard,
+  Ticket,
+  CheckCircle2,
+  Clock,
+  LogOut,
+  Search,
+  Filter,
+  Download,
+  RefreshCw
+} from 'lucide-react';
+import Header from '../components/Header';
 import api from '../services/api';
 import './PainelTI.css';
 
@@ -12,6 +24,13 @@ const PainelTI = () => {
   const [erro, setErro] = useState('');
   const [analistaFechamento, setAnalistaFechamento] = useState('');
   const [chamadoFechando, setChamadoFechando] = useState(null);
+  const [busca, setBusca] = useState('');
+  const [stats, setStats] = useState({
+    total: 0,
+    abertos: 0,
+    finalizados: 0,
+    hoje: 0
+  });
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -23,18 +42,17 @@ const PainelTI = () => {
   useEffect(() => {
     if (autenticado) {
       carregarChamados();
-      const interval = setInterval(carregarChamados, 10000); // Atualiza a cada 10s
+      const interval = setInterval(carregarChamados, 30000); // Atualiza a cada 30s
       return () => clearInterval(interval);
     }
-  }, [autenticado, filtroStatus]);
+  }, [autenticado, filtroStatus, busca]);
 
   const verificarToken = async () => {
-    try {
-      await api.get('/auth/verify');
+    // Por enquanto, apenas verifica se existe token
+    // TODO: Implementar verificação real no backend
+    const token = localStorage.getItem('token');
+    if (token) {
       setAutenticado(true);
-    } catch (error) {
-      localStorage.removeItem('token');
-      setAutenticado(false);
     }
   };
 
@@ -44,8 +62,14 @@ const PainelTI = () => {
     setLoading(true);
 
     try {
-      const response = await api.post('/auth/login', { usuario, senha });
-      localStorage.setItem('token', response.data.token);
+      const response = await api.post('/users/login', {
+        code: usuario,
+        password: senha
+      });
+
+      // Salva os dados do usuário
+      localStorage.setItem('token', 'logged_in'); // Token simples por enquanto
+      localStorage.setItem('user', JSON.stringify(response.data));
       setAutenticado(true);
       setSenha('');
     } catch (error) {
@@ -64,10 +88,38 @@ const PainelTI = () => {
 
   const carregarChamados = async () => {
     try {
-      const response = await api.get('/chamados', {
-        params: filtroStatus !== 'todos' ? { status: filtroStatus } : {}
-      });
-      setChamados(response.data);
+      const response = await api.get('/requests');
+      let todosChamados = response.data;
+
+      // Calcular estatísticas
+      const hoje = new Date().toISOString().split('T')[0];
+      const stats = {
+        total: todosChamados.length,
+        abertos: todosChamados.filter(c => c.status === 'Aberto').length,
+        finalizados: todosChamados.filter(c => c.status === 'Finalizado').length,
+        hoje: todosChamados.filter(c => c.created_at.startsWith(hoje)).length
+      };
+      setStats(stats);
+
+      // Filtrar por status se necessário
+      let chamadosFiltrados = todosChamados;
+      if (filtroStatus !== 'todos') {
+        chamadosFiltrados = todosChamados.filter(c =>
+          c.status.toLowerCase() === filtroStatus.toLowerCase()
+        );
+      }
+
+      // Filtrar por busca
+      if (busca.trim()) {
+        chamadosFiltrados = chamadosFiltrados.filter(c =>
+          c.employee_name.toLowerCase().includes(busca.toLowerCase()) ||
+          c.employee_code.toLowerCase().includes(busca.toLowerCase()) ||
+          c.equipment.toLowerCase().includes(busca.toLowerCase()) ||
+          c.id.toLowerCase().includes(busca.toLowerCase())
+        );
+      }
+
+      setChamados(chamadosFiltrados);
     } catch (error) {
       console.error('Erro ao carregar chamados:', error);
     }
@@ -92,8 +144,9 @@ const PainelTI = () => {
     setLoading(true);
 
     try {
-      await api.patch(`/chamados/${chamadoId}/fechar`, {
-        analista: analistaFechamento
+      await api.put(`/requests/${chamadoId}`, {
+        status: 'Finalizado',
+        analyst_name: analistaFechamento
       });
       setChamadoFechando(null);
       setAnalistaFechamento('');
@@ -120,45 +173,91 @@ const PainelTI = () => {
     return (
       <div className="painel-container">
         <div className="login-card">
-          <h1>🔐 Painel TI</h1>
-          <p>Faça login para acessar o painel administrativo</p>
+          {/* Left Side - Login Form */}
+          <div className="login-form-side">
+            <h1>
+              <span className="admin-text">Admin</span> Login - GFT
+            </h1>
+            <p>Entre com as suas credenciais</p>
 
-          <form onSubmit={handleLogin}>
-            <div className="form-group">
-              <label>Usuário</label>
-              <input
-                type="text"
-                value={usuario}
-                onChange={(e) => setUsuario(e.target.value)}
-                placeholder="Digite seu usuário"
-                disabled={loading}
-                autoFocus
-              />
+            <form onSubmit={handleLogin}>
+              <div className="form-group">
+                <label>4letras</label>
+                <input
+                  type="text"
+                  value={usuario}
+                  onChange={(e) => setUsuario(e.target.value)}
+                  placeholder="Informe suas 4 letras"
+                  disabled={loading}
+                  autoFocus
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Senha</label>
+                <input
+                  type="password"
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  placeholder="Coloque sua senha"
+                  disabled={loading}
+                />
+              </div>
+
+              {erro && <div className="erro-login">{erro}</div>}
+
+              <button type="submit" className="btn btn-login" disabled={loading}>
+                {loading ? 'Acessando...' : 'Acessar'}
+              </button>
+            </form>
+
+            <div className="login-footer">
+              <a href="/">← Voltar ao Totem</a>
+              <p className="credenciais-padrao">
+                <small>Usuário padrão: <strong>ADMN</strong> / Senha: <strong>admin123</strong></small>
+              </p>
             </div>
+          </div>
 
-            <div className="form-group">
-              <label>Senha</label>
-              <input
-                type="password"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                placeholder="Digite sua senha"
-                disabled={loading}
-              />
+          {/* Right Side - Dashboard Preview */}
+          <div className="login-preview-side">
+            <div className="dashboard-preview">
+              <div className="preview-header">
+                <div className="preview-header-dot"></div>
+                <div className="preview-header-dot"></div>
+                <div className="preview-header-dot"></div>
+                <span className="preview-title">Admin Dashboard</span>
+              </div>
+
+              <div className="preview-stats">
+                <div className="preview-stat-card">
+                  <div className="preview-stat-value">335</div>
+                  <div className="preview-stat-label">Total de Chamados</div>
+                </div>
+                <div className="preview-stat-card">
+                  <div className="preview-stat-value">240</div>
+                  <div className="preview-stat-label">Abertos</div>
+                </div>
+                <div className="preview-stat-card">
+                  <div className="preview-stat-value">45</div>
+                  <div className="preview-stat-label">Finalizados</div>
+                </div>
+                <div className="preview-stat-card">
+                  <div className="preview-stat-value">150</div>
+                  <div className="preview-stat-label">Criados Hoje</div>
+                </div>
+              </div>
+
+              <div className="preview-chart">
+                <div className="preview-bar"></div>
+                <div className="preview-bar"></div>
+                <div className="preview-bar"></div>
+                <div className="preview-bar"></div>
+                <div className="preview-bar"></div>
+                <div className="preview-bar"></div>
+                <div className="preview-bar"></div>
+              </div>
             </div>
-
-            {erro && <div className="erro-login">{erro}</div>}
-
-            <button type="submit" className="btn btn-login" disabled={loading}>
-              {loading ? 'Entrando...' : 'Entrar'}
-            </button>
-          </form>
-
-          <div className="login-footer">
-            <a href="/">← Voltar ao Totem</a>
-            <p className="credenciais-padrao">
-              <small>Usuário padrão: <strong>admin</strong> / Senha: <strong>admin123</strong></small>
-            </p>
           </div>
         </div>
       </div>
@@ -166,118 +265,235 @@ const PainelTI = () => {
   }
 
   return (
-    <div className="painel-container">
-      <div className="painel-header">
-        <h1>📋 Painel de Chamados - TI</h1>
-        <button onClick={handleLogout} className="btn-logout">
-          Sair
-        </button>
-      </div>
+    <>
+      <Header />
+      <div className="itsm-container">
+        {/* Sidebar */}
+        <aside className="itsm-sidebar">
+          <nav className="sidebar-nav">
+            <button className="nav-item active">
+              <Ticket size={20} />
+              <span>Chamados</span>
+            </button>
+            <button className="nav-item" disabled>
+              <LayoutDashboard size={20} />
+              <span>Dashboard</span>
+            </button>
+          </nav>
 
-      <div className="filtros">
-        <button
-          className={`btn-filtro ${filtroStatus === 'aberto' ? 'active' : ''}`}
-          onClick={() => setFiltroStatus('aberto')}
-        >
-          Abertos ({chamados.filter(c => c.status === 'aberto').length})
-        </button>
-        <button
-          className={`btn-filtro ${filtroStatus === 'fechado' ? 'active' : ''}`}
-          onClick={() => setFiltroStatus('fechado')}
-        >
-          Fechados
-        </button>
-        <button
-          className={`btn-filtro ${filtroStatus === 'todos' ? 'active' : ''}`}
-          onClick={() => setFiltroStatus('todos')}
-        >
-          Todos
-        </button>
-      </div>
-
-      <div className="chamados-lista">
-        {chamados.length === 0 ? (
-          <div className="mensagem-vazia">
-            {filtroStatus === 'aberto'
-              ? '✓ Nenhum chamado aberto no momento'
-              : 'Nenhum chamado encontrado'}
+          <div className="sidebar-footer">
+            <button onClick={handleLogout} className="logout-btn">
+              <LogOut size={18} />
+              <span>Sair</span>
+            </button>
           </div>
-        ) : (
-          <table className="tabela-chamados">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Colaborador</th>
-                <th>Equipamento</th>
-                <th>Status</th>
-                <th>Data Criação</th>
-                <th>Analista</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {chamados.map((chamado) => (
-                <tr key={chamado.id} className={chamado.status}>
-                  <td>#{chamado.id}</td>
-                  <td className="colaborador-id">{chamado.colaborador_id}</td>
-                  <td>{chamado.equipamento}</td>
-                  <td>
-                    <span className={`badge badge-${chamado.status}`}>
-                      {chamado.status === 'aberto' ? '🟢 Aberto' : '⚫ Fechado'}
-                    </span>
-                  </td>
-                  <td>{formatarData(chamado.data_criacao)}</td>
-                  <td>{chamado.analista || '-'}</td>
-                  <td>
-                    {chamado.status === 'aberto' && (
-                      <>
-                        {chamadoFechando === chamado.id ? (
-                          <div className="fechar-inline">
-                            <input
-                              type="text"
-                              placeholder="Seu nome"
-                              value={analistaFechamento}
-                              onChange={(e) => setAnalistaFechamento(e.target.value)}
-                              className="input-analista"
-                              autoFocus
-                            />
-                            <button
-                              onClick={() => handleFecharChamado(chamado.id)}
-                              className="btn btn-confirmar"
-                              disabled={loading}
-                            >
-                              ✓
-                            </button>
-                            <button
-                              onClick={cancelarFechamento}
-                              className="btn btn-cancelar"
-                              disabled={loading}
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => iniciarFechamento(chamado)}
-                            className="btn btn-fechar"
-                          >
-                            Fechar
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </aside>
 
-      <div className="painel-footer">
-        <a href="/">← Voltar ao Totem</a>
+        {/* Main Content */}
+        <main className="itsm-main">
+          {/* Page Header */}
+          <div className="page-header-itsm">
+            <div>
+              <h1 className="page-title-itsm">Gerenciamento de Chamados</h1>
+              <p className="page-subtitle-itsm">Service Desk - Equipamentos TI</p>
+            </div>
+            <button onClick={carregarChamados} className="btn-refresh" title="Atualizar">
+              <RefreshCw size={18} />
+            </button>
+          </div>
+
+          {/* Statistics Cards */}
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-icon total">
+                <Ticket size={24} />
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{stats.total}</div>
+                <div className="stat-label">Total de Chamados</div>
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-icon open">
+                <Clock size={24} />
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{stats.abertos}</div>
+                <div className="stat-label">Abertos</div>
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-icon closed">
+                <CheckCircle2 size={24} />
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{stats.finalizados}</div>
+                <div className="stat-label">Finalizados</div>
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-icon today">
+                <LayoutDashboard size={24} />
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{stats.hoje}</div>
+                <div className="stat-label">Hoje</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Filters and Search */}
+          <div className="toolbar">
+            <div className="filters-group">
+              <button
+                className={`filter-chip ${filtroStatus === 'aberto' ? 'active' : ''}`}
+                onClick={() => setFiltroStatus('aberto')}
+              >
+                <Clock size={16} />
+                Abertos
+              </button>
+              <button
+                className={`filter-chip ${filtroStatus === 'finalizado' ? 'active' : ''}`}
+                onClick={() => setFiltroStatus('finalizado')}
+              >
+                <CheckCircle2 size={16} />
+                Finalizados
+              </button>
+              <button
+                className={`filter-chip ${filtroStatus === 'todos' ? 'active' : ''}`}
+                onClick={() => setFiltroStatus('todos')}
+              >
+                <Filter size={16} />
+                Todos
+              </button>
+            </div>
+
+            <div className="search-box">
+              <Search size={18} />
+              <input
+                type="text"
+                placeholder="Buscar por colaborador, código ou equipamento..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Tickets Table */}
+          <div className="tickets-container">
+            {chamados.length === 0 ? (
+              <div className="empty-state">
+                <Ticket size={48} />
+                <h3>Nenhum chamado encontrado</h3>
+                <p>
+                  {filtroStatus === 'aberto'
+                    ? 'Não há chamados abertos no momento'
+                    : busca
+                    ? 'Nenhum resultado para sua busca'
+                    : 'Nenhum chamado registrado'}
+                </p>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="tickets-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Colaborador</th>
+                      <th>Equipamento</th>
+                      <th>Status</th>
+                      <th>Criado em</th>
+                      <th>Analista</th>
+                      <th className="actions-col">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {chamados.map((chamado) => (
+                      <tr key={chamado.id}>
+                        <td>
+                          <span className="ticket-id">{chamado.id}</span>
+                        </td>
+                        <td>
+                          <div className="user-cell">
+                            <div className="user-avatar">
+                              {chamado.employee_name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                            </div>
+                            <div className="user-info">
+                              <div className="user-name">{chamado.employee_name}</div>
+                              <div className="user-code">{chamado.employee_code}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="equipment-name">{chamado.equipment}</span>
+                        </td>
+                        <td>
+                          <span className={`status-badge status-${chamado.status.toLowerCase()}`}>
+                            {chamado.status === 'Aberto' ? 'Aberto' : 'Finalizado'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="date-text">{formatarData(chamado.created_at)}</span>
+                        </td>
+                        <td>
+                          <span className="analyst-name">
+                            {chamado.analyst_name || '-'}
+                          </span>
+                        </td>
+                        <td className="actions-col">
+                          {chamado.status === 'Aberto' && (
+                            <>
+                              {chamadoFechando === chamado.id ? (
+                                <div className="action-inline">
+                                  <input
+                                    type="text"
+                                    placeholder="Digite seu nome"
+                                    value={analistaFechamento}
+                                    onChange={(e) => setAnalistaFechamento(e.target.value)}
+                                    className="analyst-input"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => handleFecharChamado(chamado.id)}
+                                    className="btn-action confirm"
+                                    disabled={loading || !analistaFechamento.trim()}
+                                    title="Confirmar"
+                                  >
+                                    <CheckCircle2 size={16} />
+                                  </button>
+                                  <button
+                                    onClick={cancelarFechamento}
+                                    className="btn-action cancel"
+                                    disabled={loading}
+                                    title="Cancelar"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => iniciarFechamento(chamado)}
+                                  className="btn-close-ticket"
+                                >
+                                  Finalizar
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </main>
       </div>
-    </div>
+    </>
   );
 };
 
