@@ -1,9 +1,14 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+require('dotenv').config();
+const { Pool } = require('pg');
 const readline = require('readline');
 
-const dbPath = path.join(__dirname, '..', 'database.sqlite');
-const db = new sqlite3.Database(dbPath);
+const pool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'totem_equipamentos',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+});
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -20,70 +25,65 @@ console.log('');
 rl.question('Nome completo: ', (name) => {
   rl.question('Código (4 letras em maiúsculo, ex: ADMN): ', (code) => {
     rl.question('Email: ', (email) => {
-      rl.question('Senha: ', (password) => {
+      rl.question('Senha: ', async (password) => {
 
         // Validações
         if (!name || !code || !email || !password) {
           console.log('❌ Todos os campos são obrigatórios!');
           rl.close();
-          db.close();
+          await pool.end();
           return;
         }
 
         if (code.length !== 4) {
           console.log('❌ O código deve ter exatamente 4 caracteres!');
           rl.close();
-          db.close();
+          await pool.end();
           return;
         }
 
         const upperCode = code.toUpperCase();
 
-        // Verificar se já existe
-        db.get('SELECT * FROM users WHERE code = ?', [upperCode], (err, row) => {
-          if (err) {
-            console.error('❌ Erro ao verificar usuário:', err);
-            rl.close();
-            db.close();
-            return;
-          }
+        try {
+          // Verificar se já existe
+          const checkResult = await pool.query('SELECT * FROM users WHERE code = $1', [upperCode]);
 
-          if (row) {
+          if (checkResult.rows.length > 0) {
             console.log('❌ Já existe um usuário com este código!');
             rl.close();
-            db.close();
+            await pool.end();
             return;
           }
 
           // Criar usuário
           const id = `admin-${Date.now()}`;
-          const stmt = db.prepare(`
+          const query = `
             INSERT INTO users (id, name, code, email, role, password, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-          `);
+            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+          `;
 
-          stmt.run(id, name, upperCode, email, 'Administrador', password, (err) => {
-            if (err) {
-              console.error('❌ Erro ao criar usuário:', err);
-            } else {
-              console.log('');
-              console.log('===========================================');
-              console.log('✅ Usuário administrador criado com sucesso!');
-              console.log('===========================================');
-              console.log('');
-              console.log('📋 Dados de acesso:');
-              console.log(`   Código: ${upperCode}`);
-              console.log(`   Senha: ${password}`);
-              console.log('');
-              console.log('⚠️  IMPORTANTE: Guarde estes dados em local seguro!');
-              console.log('');
-            }
+          await pool.query(query, [id, name, upperCode, email, 'Administrador', password]);
 
-            stmt.finalize();
-            rl.close();
-            db.close();
-          });
-        });
+          console.log('');
+          console.log('===========================================');
+          console.log('✅ Usuário administrador criado com sucesso!');
+          console.log('===========================================');
+          console.log('');
+          console.log('📋 Dados de acesso:');
+          console.log(`   Código: ${upperCode}`);
+          console.log(`   Senha: ${password}`);
+          console.log('');
+          console.log('⚠️  IMPORTANTE: Guarde estes dados em local seguro!');
+          console.log('');
+
+          rl.close();
+          await pool.end();
+        } catch (err) {
+          console.error('❌ Erro:', err.message);
+          rl.close();
+          await pool.end();
+          process.exit(1);
+        }
       });
     });
   });

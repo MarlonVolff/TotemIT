@@ -92,9 +92,56 @@
 
 .grid-equipamentos {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(6, 1fr);
   gap: var(--space-lg);
   margin-bottom: var(--space-3xl);
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Primeira linha: 3 cards ocupando 2 colunas cada */
+.grid-equipamentos > :nth-child(1) {
+  grid-column: 1 / 3;
+}
+
+.grid-equipamentos > :nth-child(2) {
+  grid-column: 3 / 5;
+}
+
+.grid-equipamentos > :nth-child(3) {
+  grid-column: 5 / 7;
+}
+
+/* Segunda linha: 2 cards centralizados, cada um ocupando 2 colunas */
+.grid-equipamentos > :nth-child(4) {
+  grid-column: 2 / 4;
+}
+
+.grid-equipamentos > :nth-child(5) {
+  grid-column: 4 / 6;
+}
+
+/* Responsivo para tablets */
+@media (max-width: 1024px) {
+  .grid-equipamentos {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .grid-equipamentos > :nth-child(1),
+  .grid-equipamentos > :nth-child(2),
+  .grid-equipamentos > :nth-child(3),
+  .grid-equipamentos > :nth-child(4),
+  .grid-equipamentos > :nth-child(5) {
+    grid-column: auto;
+  }
+}
+
+/* Responsivo para mobile */
+@media (max-width: 768px) {
+  .grid-equipamentos {
+    grid-template-columns: 1fr;
+  }
 }
 
 .form-container {

@@ -1,19 +1,29 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+require('dotenv').config();
+const { Pool } = require('pg');
 
-const dbPath = path.join(__dirname, '..', 'database.sqlite');
-const db = new sqlite3.Database(dbPath);
+const pool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'totem_equipamentos',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+});
 
 console.log('🧹 Iniciando limpeza de chamados...');
 
-db.run('DELETE FROM equipment_requests', function(err) {
-  if (err) {
+async function clearRequests() {
+  try {
+    const result = await pool.query('DELETE FROM equipment_requests RETURNING *');
+
+    console.log(`✅ ${result.rowCount} chamado(s) removido(s) com sucesso!`);
+    console.log('✅ Banco de dados limpo!');
+
+    await pool.end();
+  } catch (err) {
     console.error('❌ Erro ao limpar chamados:', err.message);
+    await pool.end();
     process.exit(1);
   }
+}
 
-  console.log(`✅ ${this.changes} chamado(s) removido(s) com sucesso!`);
-  console.log('✅ Banco de dados limpo!');
-
-  db.close();
-});
+clearRequests();

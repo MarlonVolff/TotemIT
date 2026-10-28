@@ -1,16 +1,37 @@
 require('dotenv').config();
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { Pool } = require('pg');
 
-// Usar SQLite local para desenvolvimento
-const dbPath = path.join(__dirname, '../database.sqlite');
-const sqliteDb = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('❌ Erro ao conectar ao SQLite:', err.message);
-    return;
-  }
-  console.log('✅ Conectado ao SQLite (local):', dbPath);
+// Configuração do PostgreSQL
+const pool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'totem_equipamentos',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  max: 20, // Número máximo de conexões no pool
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
-// Exportar o banco SQLite diretamente
-module.exports = sqliteDb;
+// Testar conexão
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('❌ Erro ao conectar ao PostgreSQL:', err.message);
+    console.error('💡 Verifique se o PostgreSQL está rodando e as credenciais estão corretas');
+    return;
+  }
+  console.log('✅ Conectado ao PostgreSQL:', {
+    host: process.env.DB_HOST || 'localhost',
+    database: process.env.DB_NAME || 'totem_equipamentos',
+    port: process.env.DB_PORT || 5432
+  });
+  release();
+});
+
+// Tratamento de erros do pool
+pool.on('error', (err) => {
+  console.error('❌ Erro inesperado no pool do PostgreSQL:', err);
+  process.exit(-1);
+});
+
+module.exports = pool;

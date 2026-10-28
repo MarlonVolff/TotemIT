@@ -1,8 +1,13 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+require('dotenv').config();
+const { Pool } = require('pg');
 
-const dbPath = path.join(__dirname, 'database.sqlite');
-const db = new sqlite3.Database(dbPath);
+const pool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'totem_equipamentos',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+});
 
 console.log('');
 console.log('===========================================');
@@ -13,52 +18,51 @@ console.log('');
 // Criar usuário padrão
 const id = 'admin-default';
 const name = 'Administrador';
-const code = 'ADMIN';
+const code = 'ADMN';
 const email = 'admin@empresa.com';
 const role = 'Administrador';
 const password = 'admin123';
 
-// Verificar se já existe
-db.get('SELECT * FROM users WHERE code = ?', [code], (err, row) => {
-  if (err) {
-    console.error('❌ Erro ao verificar usuário:', err);
-    db.close();
-    return;
-  }
+async function createDefaultAdmin() {
+  try {
+    // Verificar se já existe
+    const checkResult = await pool.query('SELECT * FROM users WHERE code = $1', [code]);
 
-  if (row) {
-    console.log('ℹ️  Usuário admin padrão já existe!');
-    console.log('');
-    console.log('📋 Dados de acesso:');
-    console.log(`   Código: ${code}`);
-    console.log(`   Senha: ${password}`);
-    console.log('');
-    db.close();
-    return;
-  }
-
-  // Criar usuário
-  const stmt = db.prepare(`
-    INSERT INTO users (id, name, code, email, role, password, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-  `);
-
-  stmt.run(id, name, code, email, role, password, (err) => {
-    if (err) {
-      console.error('❌ Erro ao criar usuário:', err);
-    } else {
-      console.log('✅ Usuário administrador criado com sucesso!');
+    if (checkResult.rows.length > 0) {
+      console.log('ℹ️  Usuário admin padrão já existe!');
       console.log('');
       console.log('📋 Dados de acesso:');
       console.log(`   Código: ${code}`);
       console.log(`   Senha: ${password}`);
       console.log('');
-      console.log('💡 Use estes dados para fazer login no Painel TI');
-      console.log('   URL: http://localhost:3000/painel-ti');
-      console.log('');
+      await pool.end();
+      return;
     }
 
-    stmt.finalize();
-    db.close();
-  });
-});
+    // Criar usuário
+    const query = `
+      INSERT INTO users (id, name, code, email, role, password, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+    `;
+
+    await pool.query(query, [id, name, code, email, role, password]);
+
+    console.log('✅ Usuário administrador criado com sucesso!');
+    console.log('');
+    console.log('📋 Dados de acesso:');
+    console.log(`   Código: ${code}`);
+    console.log(`   Senha: ${password}`);
+    console.log('');
+    console.log('💡 Use estes dados para fazer login no Painel TI');
+    console.log('   URL: http://localhost:3000/painel-ti');
+    console.log('');
+
+    await pool.end();
+  } catch (err) {
+    console.error('❌ Erro:', err.message);
+    await pool.end();
+    process.exit(1);
+  }
+}
+
+createDefaultAdmin();

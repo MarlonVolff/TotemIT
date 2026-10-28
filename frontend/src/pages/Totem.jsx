@@ -26,7 +26,7 @@ const Totem = () => {
     {
       id: 'carregador-notebook',
       nome: 'Carregador de Notebook',
-      descricao: 'Fonte de alimentação Tipo C',
+      descricao: 'Necessito de um carregador Tipo C',
       icon: Plug2
     },
     {
@@ -44,7 +44,7 @@ const Totem = () => {
     {
       id: 'monitor',
       nome: 'Monitor não liga',
-      descricao: 'Monitor adicional para workstation',
+      descricao: 'Monitor com problema',
       icon: MonitorPlay
     },
     {
